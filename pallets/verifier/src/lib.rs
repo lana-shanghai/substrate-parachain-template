@@ -38,6 +38,13 @@ pub mod verifier {
         time_slot: Vec<u8>, 
     }
 
+    #[derive(Debug, Encode, Decode, Default, Clone, PartialEq, Eq)]
+    pub struct Match {
+        ids: (u32, u32),
+        price: u32,
+        energy: u32
+    }
+
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -100,7 +107,7 @@ pub mod verifier {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(0,0))]
-        fn verify_matches_of_bids_and_offers(origin:OriginFor<T>, list_of_bids:Vec<Bid>, list_of_offers:Vec<Offer>, matches:Vec<(u32, u32)>) -> DispatchResult {
+        fn verify_matches_of_bids_and_offers(origin:OriginFor<T>, list_of_bids:Vec<Bid>, list_of_offers:Vec<Offer>, matches:Vec<Match>) -> DispatchResult {
             // Step 1: verify that all the suggested matches' indices are contained in the given bids and offers
             let mut bid_indices = Vec::new();
             for bid in list_of_bids.iter() {
@@ -111,8 +118,8 @@ pub mod verifier {
                 offer_indices.push(offer.uuid);
             }
 
-            assert!(matches.iter().all(|m| bid_indices.contains(&m.0)));
-            assert!(matches.iter().all(|m| offer_indices.contains(&m.1)));
+            assert!(matches.iter().all(|m| bid_indices.contains(&m.ids.0)));
+            assert!(matches.iter().all(|m| offer_indices.contains(&m.ids.1)));
             Ok(())
         }
 	}
