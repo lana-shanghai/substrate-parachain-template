@@ -77,19 +77,42 @@ pub mod verifier {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-	    #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+
+        /// Accepts individual bid and offer parameters and asserts that they match. Done in this way due to JS frontend.
         fn verify_match(origin:OriginFor<T>, bid_uuid:u32, bid_market_uuid:Vec<u8>, bid_asset_uuid:Vec<u8>, bid_max_energy:u32, bid_time_slot:Vec<u8>,
             offer_uuid:u32, offer_market_uuid:Vec<u8>, offer_asset_uuid:Vec<u8>, offer_energy_type:Vec<u8>, offer_max_energy:u32, offer_time_slot:Vec<u8>) -> DispatchResult {
             let _who = ensure_root(origin)?;
-            let bid = Bid {uuid:bid_uuid , market_uuid:Some(bid_market_uuid.clone()), asset_uuid:Some(bid_asset_uuid.clone()), max_energy:bid_max_energy, time_slot:bid_time_slot.clone()};
-            let offer = Offer {uuid: offer_uuid, market_uuid:offer_market_uuid.clone(), asset_uuid:offer_asset_uuid.clone(), energy_type:offer_energy_type.clone(), max_energy:offer_max_energy, time_slot:offer_time_slot.clone()};
+            let bid = Bid {uuid:bid_uuid , market_uuid:Some(bid_market_uuid.clone()), asset_uuid:Some(bid_asset_uuid.clone()), 
+                max_energy:bid_max_energy, time_slot:bid_time_slot.clone()};
+            let offer = Offer {uuid: offer_uuid, market_uuid:offer_market_uuid.clone(), asset_uuid:offer_asset_uuid.clone(), 
+                energy_type:offer_energy_type.clone(), max_energy:offer_max_energy, time_slot:offer_time_slot.clone()};
             let offer_clone = offer.clone();
+            
             assert_eq!(bid.uuid, offer_clone.uuid);
             assert_eq!(bid.market_uuid, Some(offer_clone.market_uuid));
             assert_eq!(bid.asset_uuid, Some(offer_clone.asset_uuid));
+            
             let trade_id = bid.uuid.clone();
             <ValidTrades<T>>::insert(&trade_id, true);
             Self::deposit_event(Event::MatchVerified(bid, offer));
+            Ok(())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(0,0))]
+        fn verify_matches_of_bids_and_offers(origin:OriginFor<T>, list_of_bids:Vec<Bid>, list_of_offers:Vec<Offer>, matches:Vec<(u32, u32)>) -> DispatchResult {
+            // Step 1: verify that all the suggested matches' indices are contained in the given bids and offers
+            let mut bid_indices = Vec::new();
+            for bid in list_of_bids.iter() {
+                bid_indices.push(bid.uuid);
+            }
+            let mut offer_indices = Vec::new();
+            for offer in list_of_offers.iter() {
+                offer_indices.push(offer.uuid);
+            }
+
+            assert!(matches.iter().all(|m| bid_indices.contains(&m.0)));
+            assert!(matches.iter().all(|m| offer_indices.contains(&m.1)));
             Ok(())
         }
 	}
